@@ -8,7 +8,7 @@ import datetime
 import random
 from PIL import Image, ImageDraw, ImageFont
 
-@register("astrbot_plugin_sign", "FengYing", "一个简易的签到插件，推荐自己更改底图，分辨率为1640*856" "", "")
+@register("astrbot_plugin_sign", "FengYing", "一个简易的签到插件(半成品)，推荐自己更改底图，分辨率为1640*856" "", "")
 class SignPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
