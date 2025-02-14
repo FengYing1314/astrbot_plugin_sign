@@ -41,17 +41,9 @@ class SignPlugin(Star):
         
         draw = ImageDraw.Draw(bg)
         
-        try:
-            # 先尝试加载自定义字体
-            font_path = os.path.join(os.path.dirname(__file__), "LXGWWenKai-Medium.ttf")
-            if os.path.exists(font_path):
-                font = ImageFont.truetype(font_path, font_size)
-            else:
-                # 如果找不到自定义字体，使用系统默认字体
-                font = ImageFont.load_default()
-        except Exception as e:
-            logger.warning(f"加载字体失败: {e}, 使用默认字体")
-            font = ImageFont.load_default()
+        # 使用 LXGWWenKai-Medium.ttf 字体
+        font_path = os.path.join(os.path.dirname(__file__), "LXGWWenKai-Medium.ttf")
+        font = ImageFont.truetype(font_path, font_size)
 
         text_bbox = draw.textbbox((0, 0), text, font=font)
         text_width = text_bbox[2] - text_bbox[0]
