@@ -42,7 +42,7 @@ class SignPlugin(Star):
         draw = ImageDraw.Draw(bg)
         
         try:
-            font = ImageFont.truetype("simhei.ttf", font_size)
+            font = ImageFont.truetype("LXGWWenKai-Medium.ttf", font_size)
         except:
             font = ImageFont.load_default()
 
@@ -93,11 +93,11 @@ class SignPlugin(Star):
         self.save_data()
         
         result = (
-            f"签到成功! ╰(*°▽°*)╯\n"
-            f"获得金币：{coins_got} ⭐\n"
-            f"当前金币：{user_data['coins']} ✨\n"
-            f"累计签到：{user_data['total_days']}天 ~\n"
-            f"连续签到：{user_data['continuous_days']}天 ♪"
+            f"签到成功喵~ ヾ(≧▽≦*)o\n"
+            f"获得金币：{coins_got} ✧(≖ ◡ ≖✿)\n"
+            f"当前金币：{user_data['coins']} (*´∀`*)\n"
+            f"累计签到：{user_data['total_days']}天 (◍•ᴗ•◍)\n"
+            f"连续签到：{user_data['continuous_days']}天 nyaa~ ฅ(●'◡'●)ฅ"
         )
 
         # 使用新的图片生成方法
@@ -113,7 +113,7 @@ class SignPlugin(Star):
         user_id = event.get_sender_id()
         
         if user_id not in self.sign_data:
-            image_path = await self.create_sign_image("还没有签到记录呢~ >_<", font_size=40)
+            image_path = await self.create_sign_image("还没有签到记录呢喵~ (｡•́︿•̀｡)", font_size=40)
             yield event.image_result(image_path)
             if os.path.exists(image_path):
                 os.remove(image_path)
@@ -121,11 +121,11 @@ class SignPlugin(Star):
             
         user_data = self.sign_data[user_id]
         text = (
-            f"签到信息 ✧\n"
-            f"当前金币：{user_data.get('coins', 0)} ⭐\n"
-            f"累计签到：{user_data['total_days']}天 ✨\n"
-            f"连续签到：{user_data['continuous_days']}天 ♪\n"
-            f"上次签到：{user_data['last_sign']} ~"
+            f"签到信息喵~ (๑•̀ㅂ•́)و✧\n"
+            f"当前金币：{user_data.get('coins', 0)} (★ ω ★)\n"
+            f"累计签到：{user_data['total_days']}天 (◕‿◕✿)\n"
+            f"连续签到：{user_data['continuous_days']}天 (｡♥‿♥｡)\n"
+            f"上次签到：{user_data['last_sign']} nya~ ₍˄·͈༝·͈˄₎◞ ̑̑"
         )
         image_path = await self.create_sign_image(text, font_size=40)  # 查询信息使用标准字号
         yield event.image_result(image_path)
@@ -156,7 +156,7 @@ class SignPlugin(Star):
     async def modify_coins(self, event: AstrMessageEvent, user_id: str, amount: int):
         '''修改用户金币数量(仅管理员)'''
         if user_id not in self.sign_data:
-            image_path = await self.create_sign_image(f"用户 {user_id} 不存在~ >_<", font_size=40)
+            image_path = await self.create_sign_image(f"用户 {user_id} 不存在喵~ (｡•́︿•̀｡)", font_size=40)
             yield event.image_result(image_path)
             if os.path.exists(image_path):
                 os.remove(image_path)
@@ -164,7 +164,7 @@ class SignPlugin(Star):
             
         self.sign_data[user_id]['coins'] = amount
         self.save_data()
-        image_path = await self.create_sign_image(f"已将用户 {user_id} 的金币修改为 {amount} ✨", font_size=40)
+        image_path = await self.create_sign_image(f"已将用户 {user_id} 的金币修改为 {amount} 喵~ (。・∀・)ノ", font_size=40)
         yield event.image_result(image_path)
         if os.path.exists(image_path):
             os.remove(image_path)
@@ -172,8 +172,8 @@ class SignPlugin(Star):
     @filter.command("签到帮助")
     async def sign_help(self, event: AstrMessageEvent):
         '''查看签到帮助'''
-        help_text = """签到系统帮助 ✨
-
+        help_text = """签到系统帮助喵~ ฅ^•ﻌ•^ฅ
+        
 发送 签到 - 每日签到
 发送 查询 - 查看个人签到信息 
 发送 排行 - 查看签到排行榜
