@@ -75,8 +75,10 @@ class SignPlugin(Star):
         user_data = self.sign_data[user_id]
         
         if user_data["last_sign"] == today:
-            url = await self.text_to_image("今天已经签到过啦喵~")
-            yield event.image_result(url)
+            image_path = await self.create_sign_image("今天已经签到过啦喵~", font_size=40)
+            yield event.image_result(image_path)
+            if os.path.exists(image_path):
+                os.remove(image_path)
             return
             
         if user_data["last_sign"] == (datetime.date.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d'):
