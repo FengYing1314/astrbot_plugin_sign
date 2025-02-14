@@ -8,7 +8,7 @@ import datetime
 import random
 from PIL import Image, ImageDraw, ImageFont
 
-@register("astrbot_plugin_sign", "FengYing", "一个签到插件，推荐自己更改底图，分辨率为1640*856" "", "")
+@register("astrbot_plugin_sign", "FengYing", "一个简易的签到插件，推荐自己更改底图，分辨率为1640*856" "", "")
 class SignPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -108,7 +108,7 @@ class SignPlugin(Star):
         )
 
         # 使用新的图片生成方法
-        image_path = await self.create_sign_image(result, font_size=45)  # 签到信息较重要,使用较大字号
+        image_path = await self.create_sign_image(result, font_size=45) 
         yield event.image_result(image_path)
         # 删除临时文件
         if os.path.exists(image_path):
@@ -134,7 +134,7 @@ class SignPlugin(Star):
             f"连续签到：{user_data['continuous_days']}天\n"
             f"上次签到：{user_data['last_sign']}"
         )
-        image_path = await self.create_sign_image(text, font_size=40)  # 查询信息使用标准字号
+        image_path = await self.create_sign_image(text, font_size=40) 
         yield event.image_result(image_path)
         if os.path.exists(image_path):
             os.remove(image_path)
@@ -153,7 +153,7 @@ class SignPlugin(Star):
             rank_text += f"第{idx}名: {user_id}\n"
             rank_text += f"金币: {data['coins']} | 累计签到: {data['total_days']}天\n\n"
         
-        image_path = await self.create_sign_image(rank_text, font_size=35)  # 排行榜信息较多,使用较小字号
+        image_path = await self.create_sign_image(rank_text, font_size=35)  
         yield event.image_result(image_path)
         if os.path.exists(image_path):
             os.remove(image_path)
@@ -188,7 +188,7 @@ class SignPlugin(Star):
 管理员指令:
 发送 修改金币 <用户id> <金币数> - 修改用户金币数量"""
         
-        image_path = await self.create_sign_image(help_text, font_size=38)  # 帮助信息较长,使用适中字号
+        image_path = await self.create_sign_image(help_text, font_size=38) 
         yield event.image_result(image_path)
         if os.path.exists(image_path):
             os.remove(image_path)
