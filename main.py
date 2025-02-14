@@ -42,8 +42,13 @@ class SignPlugin(Star):
         draw = ImageDraw.Draw(bg)
         
         try:
-            font = ImageFont.truetype("MapleMono-SemiBold.ttf", font_size)
-        except:
+            # 使用支持颜文字的字体
+            font_path = os.path.join(os.path.dirname(__file__), "LXGWWenKai-Medium.ttf")
+            if not os.path.exists(font_path):
+                font_path = "LXGWWenKai-Medium.ttf"  # 尝试使用系统字体
+            font = ImageFont.truetype(font_path, font_size, layout_engine=ImageFont.Layout.RAQM)
+        except Exception as e:
+            logger.warning(f"加载字体失败: {e}, 使用默认字体")
             font = ImageFont.load_default()
 
         text_bbox = draw.textbbox((0, 0), text, font=font)
@@ -93,11 +98,11 @@ class SignPlugin(Star):
         self.save_data()
         
         result = (
-            f"签到成功喵~ ヾ(≧▽≦*)o\n"
+            f"签到成功！ヾ(≧▽≦*)o\n"
             f"获得金币：{coins_got} ✧(≖ ◡ ≖✿)\n"
             f"当前金币：{user_data['coins']} (*´∀`*)\n"
             f"累计签到：{user_data['total_days']}天 (◍•ᴗ•◍)\n"
-            f"连续签到：{user_data['continuous_days']}天 nyaa~ ฅ(●'◡'●)ฅ"
+            f"连续签到：{user_data['continuous_days']}天 ฅ(●'◡'●)ฅ"
         )
 
         # 使用新的图片生成方法
@@ -121,11 +126,11 @@ class SignPlugin(Star):
             
         user_data = self.sign_data[user_id]
         text = (
-            f"签到信息喵~ (๑•̀ㅂ•́)و✧\n"
+            f"签到信息 (๑•̀ㅂ•́)و✧\n"
             f"当前金币：{user_data.get('coins', 0)} (★ ω ★)\n"
             f"累计签到：{user_data['total_days']}天 (◕‿◕✿)\n"
             f"连续签到：{user_data['continuous_days']}天 (｡♥‿♥｡)\n"
-            f"上次签到：{user_data['last_sign']} nya~ ₍˄·͈༝·͈˄₎◞ ̑̑"
+            f"上次签到：{user_data['last_sign']} ₍˄·͈༝·͈˄₎◞ ̑̑"
         )
         image_path = await self.create_sign_image(text, font_size=40)  # 查询信息使用标准字号
         yield event.image_result(image_path)
