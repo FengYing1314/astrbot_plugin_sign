@@ -42,7 +42,7 @@ class SignPlugin(Star):
         draw = ImageDraw.Draw(bg)
         
         try:
-            font = ImageFont.truetype("LXGWWenKai-Medium.ttf", font_size)
+            font = ImageFont.truetype("MapleMono-SemiBold.ttf", font_size)
         except:
             font = ImageFont.load_default()
 
