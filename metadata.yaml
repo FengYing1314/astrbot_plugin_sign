@@ -1,6 +1,6 @@
-name: astrbot_plugin_sign # 这是你的插件的唯一识别名。
-desc: 一个简易的签到插件(半成品)，推荐自己更改底图，分辨率为1640*856 # 插件简短描述
-help: 输入"签到帮助"" # 插件的帮助信息
-version: v1.0 # 插件版本号。格式：v1.1.1 或者 v1.1
-author: FengYing # 作者
-repo: https://github.com/FengYing1314/astrbot_plugin_sign # 插件的仓库地址
+name: sign 
+desc: 一个简易的签到插件(半成品)，推荐自己更改底图，分辨率为1640*856 
+help: 输入"签到帮助"" 
+version: v1.0 
+author: FengYing 
+repo: https://github.com/FengYing1314/astrbot_plugin_sign 

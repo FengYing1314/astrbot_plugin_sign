@@ -1,8 +1,10 @@
-# helloworld
+# sign
 
 AstrBot 插件
 
 一个半成品的签到插件 
+
+用户输入"签到帮助"
 
 # 支持
 
