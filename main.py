@@ -6,12 +6,14 @@ import json
 import os
 import datetime
 import random
+from PIL import Image, ImageDraw, ImageFont
 
 @register("sign", "Your Name", "一个功能丰富的签到插件", "1.1.0", "repo url")
 class SignPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
         self.data_file = os.path.join(os.path.dirname(__file__), "sign_data.json")
+        self.bg_image = os.path.join(os.path.dirname(__file__), "Basemap.png") # 添加底图路径
         self.load_data()
 
     def load_data(self):
@@ -30,6 +32,36 @@ class SignPlugin(Star):
         """保存签到数据"""
         with open(self.data_file, 'w', encoding='utf-8') as f:
             json.dump(self.sign_data, f, indent=4, ensure_ascii=False)
+
+    async def create_sign_image(self, text: str) -> str:
+        """生成签到图片"""
+        # 打开底图
+        bg = Image.open(self.bg_image)
+        
+        # 创建可以在图片上进行绘制的对象 
+        draw = ImageDraw.Draw(bg)
+        
+        # 这里可以添加字体,大小等自定义设置
+        try:
+            font = ImageFont.truetype("simhei.ttf", 32)
+        except:
+            font = ImageFont.load_default()
+
+        # 计算文本位置让其居中显示
+        text_bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+        
+        x = (bg.width - text_width) / 2
+        y = (bg.height - text_height) / 2
+        
+        # 在图片上绘制文字
+        draw.text((x, y), text, font=font, fill=(0, 0, 0))
+
+        # 保存为临时文件并返回路径
+        temp_path = os.path.join(os.path.dirname(__file__), "temp_sign.png")
+        bg.save(temp_path)
+        return temp_path
 
     @filter.command("签到")
     async def sign(self, event: AstrMessageEvent):
@@ -71,8 +103,13 @@ class SignPlugin(Star):
             f"累计签到：{user_data['total_days']}天 (◍•ᴗ•◍)\n"
             f"连续签到：{user_data['continuous_days']}天 nyaa~ ฅ(●'◡'●)ฅ"
         )
-        url = await self.text_to_image(result)
-        yield event.image_result(url)
+
+        # 使用新的图片生成方法
+        image_path = await self.create_sign_image(result)
+        yield event.image_result(image_path)
+        # 删除临时文件
+        if os.path.exists(image_path):
+            os.remove(image_path)
 
     @filter.command("查询")
     async def sign_info(self, event: AstrMessageEvent):
