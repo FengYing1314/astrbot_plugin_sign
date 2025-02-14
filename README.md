@@ -1,8 +1,8 @@
 # helloworld
 
-AstrBot 插件模板
+AstrBot 插件
 
-A template plugin for AstrBot plugin feature
+一个半成品的签到插件 
 
 # 支持
 

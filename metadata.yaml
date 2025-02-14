@@ -3,4 +3,4 @@ desc: 这是枫莹开发的一个签到插件 # 插件简短描述
 help: 还没写。 # 插件的帮助信息
 version: v1.0 # 插件版本号。格式：v1.1.1 或者 v1.1
 author: FengYing # 作者
-repo: https://github.com/FengYing1314/bot_test # 插件的仓库地址
+repo: https://github.com/FengYing1314/astrbot_plugin_sign # 插件的仓库地址
