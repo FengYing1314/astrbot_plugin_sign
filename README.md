@@ -64,5 +64,5 @@
 - ⏳ 金币系统正在逐步完善中
 
 ## 👨‍💻 作者
-- 作者：FengYing
+- 作者：[FengYing](https://github.com/FengYing1314/)
 - 仓库：[GitHub](https://github.com/FengYing1314/astrbot_plugin_sign)
