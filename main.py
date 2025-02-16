@@ -1,3 +1,13 @@
+from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
+from astrbot.api.star import Context, Star, register
+from astrbot.api import logger
+from astrbot.api.message_components import Plain
+import json
+import os
+import datetime
+import random
+from PIL import Image, ImageDraw, ImageFont
+
 @register("astrbot_plugin_sign_new", "gdzjs", "一个简易的签到插件(半成品)，推荐自己更改底图，分辨率为1640*856" "", "")
 class SignPlugin(Star):
     def __init__(self, context: Context):
