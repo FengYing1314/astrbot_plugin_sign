@@ -88,7 +88,7 @@ class SignPlugin(Star):
                     "total_days": 0,
                     "last_sign": "",
                     "continuous_days": 0,
-                    "coins": 0
+                    "coins": 0,
                     "fortune_history": {},
                     "last_fortune": {"result": "", "value": 0}
                 }
