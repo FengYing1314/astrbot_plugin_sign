@@ -102,15 +102,17 @@ class SignPlugin(Star):
                 else:
                     yield event.plain_result("今天已经签到过啦喵~")
                 return
-
+            # 判断是否连续签到
             if user_data["last_sign"] == (datetime.date.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d'):
                 user_data["continuous_days"] += 1
             else:
                 user_data["continuous_days"] = 1
+            # 随机连续奖励
+            coins_got = random.randint(0, 100)  # 基础奖励
+            coins_gift = min(int(math.sqrt(user_data["continuous_days"]) * 20), 200)  # 连续签到加成，上限200
+            total_coins = coins_got + coins_gift  # 总奖励
 
-            coins_got = random.randint(0, 100)
-            user_data["coins"] = user_data.get("coins", 0) + coins_got
-
+            user_data["coins"] = user_data.get("coins", 0) + total_coins
             user_data["total_days"] += 1
             user_data["last_sign"] = today
 
@@ -133,7 +135,8 @@ class SignPlugin(Star):
 
             result = (
                 f"签到成功喵~\n"
-                f"获得金币：{coins_got}\n"
+                f"获得金币：{total_coins}\n"
+                f"（基础签到：{coins_got}，连续签到加成：{coins_gift}）\n"
                 f"当前金币：{user_data['coins']}\n"
                 f"累计签到：{user_data['total_days']}天\n"
                 f"连续签到：{user_data['continuous_days']}天\n"
