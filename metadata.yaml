@@ -6,6 +6,6 @@ help: |
   - 查询：查看个人信息
   - 排行：查看排行榜
   - 签到帮助：显示帮助信息
-version: v1.0.2
+version: v1.0.1
 author: FengYing
 repo: https://github.com/FengYing1314/astrbot_plugin_sign
