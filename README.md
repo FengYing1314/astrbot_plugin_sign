@@ -65,6 +65,6 @@
 
 ## 👨‍💻 作者
 - 作者：[FengYing](https://github.com/FengYing1314/)
-- 仓库：[GitHub](https://github.com/FengYing1314/astrbot_plugin_sign)
-qq:
+- 仓库：[GitHub](https://github.com/FengYing1314/astrbot_plugin_sign)  
+qq:  
 236171472
