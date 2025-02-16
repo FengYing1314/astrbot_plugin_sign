@@ -88,8 +88,8 @@ class SignPlugin(Star):
                     "continuous_days": 0,
                     "coins": 0,
                     "fortune_history": {},
-                    "last_fortune": {"result": "", "value": 0}
-                    "total_coins_gift": 0,  # 新增字段：累计连续签到总奖励
+                    "last_fortune": {"result": "", "value": 0},
+                    "total_coins_gift": 0  # 新增字段：累计连续签到总奖励
                 }
 
             user_data = self.sign_data[user_id]
