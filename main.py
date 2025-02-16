@@ -109,7 +109,7 @@ class SignPlugin(Star):
                 user_data["continuous_days"] = 1
             # 随机连续奖励
             coins_got = random.randint(0, 100)  # 基础奖励
-            coins_gift = min(int(math.sqrt(user_data["continuous_days"]) * 20), 200)  # 连续签到加成，上限200
+            coins_gift = min(user_data["continuous_days"] * 10, 200) # 连续签到加成，上限200
             total_coins = coins_got + coins_gift  # 总奖励
 
             user_data["coins"] = user_data.get("coins", 0) + total_coins
