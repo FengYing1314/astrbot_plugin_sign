@@ -21,6 +21,12 @@ class SignPlugin(Star):
         if os.path.exists(self.data_file):
             with open(self.data_file, 'r', encoding='utf-8') as f:
                 self.sign_data = json.load(f)
+        for user_id in self.sign_data:
+            user_data = self.sign_data[user_id]
+            if "fortune_history" not in user_data:
+                user_data["fortune_history"] = {}
+            if "last_fortune" not in user_data:
+                user_data["last_fortune"] = {"result": "", "value": 0}
         else:
             self.sign_data = {}
             self.save_data()
@@ -83,6 +89,8 @@ class SignPlugin(Star):
                     "last_sign": "",
                     "continuous_days": 0,
                     "coins": 0
+                    "fortune_history": {},
+                    "last_fortune": {"result": "", "value": 0}
                 }
             
             user_data = self.sign_data[user_id]
@@ -107,6 +115,22 @@ class SignPlugin(Star):
             
             user_data["total_days"] += 1
             user_data["last_sign"] = today
+            
+            # 生成占卜结果
+            fortune_levels = ["凶", "末小吉", "末吉", "小吉", "半吉", "吉", "大吉"]
+            fortune_value = random.randint(0, 100)
+            fortune_index = min(fortune_value // 15, 6)
+            fortune_result = fortune_levels[fortune_index]
+
+            # 保存占卜记录
+            user_data["fortune_history"][today] = {  # 按日期保存历史
+                "result": fortune_result,
+                "value": fortune_value
+            }
+            user_data["last_fortune"] = {  # 保存最后一次结果
+                "result": fortune_result,
+                "value": fortune_value
+            }
             self.save_data()
             
             result = (
@@ -115,6 +139,7 @@ class SignPlugin(Star):
                 f"当前金币：{user_data['coins']}\n"
                 f"累计签到：{user_data['total_days']}天\n"
                 f"连续签到：{user_data['continuous_days']}天"
+                f"今日占卜：{fortune_result} ({fortune_value}/100)"
             )
 
             image_path = await self.create_sign_image(result, font_size=45)
@@ -147,12 +172,39 @@ class SignPlugin(Star):
             f"累计签到：{user_data['total_days']}天\n"
             f"连续签到：{user_data['continuous_days']}天\n"
             f"上次签到：{user_data['last_sign']}"
+            f"最新占卜：{user_data['last_fortune']['result']} ({user_data['last_fortune']['value']}/100)"
         )
         image_path = await self.create_sign_image(text, font_size=40) 
         yield event.image_result(image_path)
         if os.path.exists(image_path):
             os.remove(image_path)
 
+    # 新增历史占卜查询命令
+    @filter.command("占卜历史")
+    async def fortune_history(self, event: AstrMessageEvent):
+        '''查看最近7天占卜记录'''
+        user_id = event.get_sender_id()
+        
+        if user_id not in self.sign_data:
+            image_path = await self.create_sign_image("还没有签到记录呢喵~", font_size=40)
+            yield event.image_result(image_path)
+            return
+            
+        user_data = self.sign_data[user_id]
+        history = user_data["fortune_history"]
+        
+        # 获取最近7条记录
+        sorted_dates = sorted(history.keys(), reverse=True)[:7]
+        history_text = "最近占卜记录\n\n"
+        for date in sorted_dates:
+            entry = history[date]
+            history_text += f"{date}: {entry['result']} ({entry['value']}/100)\n"
+            
+        image_path = await self.create_sign_image(history_text, font_size=35)
+        yield event.image_result(image_path)
+        if os.path.exists(image_path):
+            os.remove(image_path)
+            
     @filter.command("排行")
     async def sign_rank(self, event: AstrMessageEvent):
         '''查看签到排行榜'''
@@ -189,7 +241,34 @@ class SignPlugin(Star):
         yield event.image_result(image_path)
         if os.path.exists(image_path):
             os.remove(image_path)
+    @filter.command("删除所有记录")
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    async def delete_all_records(self, event: AstrMessageEvent):
+    '''删除所有签到记录（仅管理员）'''
+    try:
+        # 清空签到数据
+        self.sign_data = {}
+        self.save_data()
+        
+        # 返回成功消息
+        image_path = await self.create_sign_image("所有签到记录已删除喵~", font_size=40)
+        yield event.image_result(image_path)
+        if os.path.exists(image_path):
+            os.remove(image_path)
+    except Exception as e:
+        logger.error(f"删除记录失败: {str(e)}")
+        yield event.plain_result("删除记录失败喵~请联系开发者检查日志")
 
+    @filter.command("删除用户记录")
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    async def delete_user_records(self, event: AstrMessageEvent, user_id: str):
+    '''删除指定用户的签到记录（仅管理员）'''
+    if user_id in self.sign_data:
+        del self.sign_data[user_id]
+        self.save_data()
+        yield event.plain_result(f"用户 {user_id} 的签到记录已删除喵~")
+    else:
+        yield event.plain_result(f"用户 {user_id} 不存在喵~")
     @filter.command("签到帮助")
     async def sign_help(self, event: AstrMessageEvent):
         '''查看签到帮助'''
