@@ -1,5 +1,5 @@
 name: astrbot_plugin_sign
-desc: 基础的签到系统，支持每日签到、金币系统、排行榜等功能，以及占卜功能，可自定义签到卡片底图(1640*856)
+desc: 基础的签到系统，支持每日签到、金币系统、排行榜等功能，以及占卜功能，具体请看README.md
 help: |
   签到系统指令：
   - 签到：进行每日签到
@@ -7,6 +7,6 @@ help: |
   - 排行：查看排行榜
   - 签到帮助：显示帮助信息
   - 占卜：签到时进行一次占卜
-version: v1.0.2
+version: v1.0.3
 author: FengYing
 repo: https://github.com/FengYing1314/astrbot_plugin_sign
