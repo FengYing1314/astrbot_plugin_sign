@@ -1,12 +1,6 @@
 name: astrbot_plugin_sign
 desc: 基础的签到系统，支持每日签到、金币系统、排行榜等功能，以及占卜功能，具体请看README.md
-help: |
-  签到系统指令：
-  - 签到：进行每日签到
-  - 查询：查看个人信息
-  - 排行：查看排行榜
-  - 签到帮助：显示帮助信息
-  - 占卜：签到时进行一次占卜
+help: 发送/签到帮助 即可以获取使用方法，具体实现功能和使用方法请看README.md
 version: v1.0.3
 author: FengYing
 repo: https://github.com/FengYing1314/astrbot_plugin_sign
