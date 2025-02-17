@@ -88,7 +88,8 @@ class SignPlugin(Star):
                     "continuous_days": 0,
                     "coins": 0,
                     "fortune_history": {},
-                    "last_fortune": {"result": "", "value": 0}
+                    "last_fortune": {"result": "", "value": 0},
+                    "total_coins_gift": 0  # 新增字段：累计连续签到总奖励
                 }
 
             user_data = self.sign_data[user_id]
@@ -102,15 +103,21 @@ class SignPlugin(Star):
                 else:
                     yield event.plain_result("今天已经签到过啦喵~")
                 return
-
+            # 判断是否连续签到
             if user_data["last_sign"] == (datetime.date.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d'):
                 user_data["continuous_days"] += 1
             else:
-                user_data["continuous_days"] = 1
+                user_data["continuous_days"] = 1  
+            # 随机连续奖励
+            coins_got = random.randint(0, 100)  # 基础奖励
+            if user_data["continuous_days"] > 1:  # 只有连续签到天数大于1时才计算加成
+                coins_gift = min(user_data["continuous_days"] * 10, 200) # 连续签到加成，上限200
+                user_data["total_coins_gift"] += coins_gift  # 累加连续签到奖励
+            else:
+                coins_gift = 0 # 第一天签到没有连续加成
+            total_coins = coins_got + coins_gift  # 总奖励
 
-            coins_got = random.randint(0, 100)
-            user_data["coins"] = user_data.get("coins", 0) + coins_got
-
+            user_data["coins"] = user_data.get("coins", 0) + total_coins
             user_data["total_days"] += 1
             user_data["last_sign"] = today
 
@@ -133,10 +140,11 @@ class SignPlugin(Star):
 
             result = (
                 f"签到成功喵~\n"
-                f"获得金币：{coins_got}\n"
+                f"获得金币：{total_coins}\n"
+                f"（基础签到：{coins_got}，连续签到加成：{coins_gift}）\n"
                 f"当前金币：{user_data['coins']}\n"
                 f"累计签到：{user_data['total_days']}天\n"
-                f"连续签到：{user_data['continuous_days']}天\n"
+                f"连续签到：{user_data['continuous_days'] - 1}天\n" #第一天签到不算连续
                 f"今日占卜：{fortune_result} ({fortune_value}/100)"
             )
 
@@ -168,7 +176,8 @@ class SignPlugin(Star):
             f"签到信息喵~\n"
             f"当前金币：{user_data.get('coins', 0)}\n"
             f"累计签到：{user_data['total_days']}天\n"
-            f"连续签到：{user_data['continuous_days']}天\n"
+            f"连续签到：{user_data['continuous_days'] - 1}天\n" #第一天签到不算连续
+            f"累计连续签到奖励：{user_data['total_coins_gift']}金币\n"  # 新增：显示累计连续奖励
             f"上次签到：{user_data['last_sign']}\n"
             f"最新占卜：{user_data['last_fortune']['result']} ({user_data['last_fortune']['value']}/100)"
         )
