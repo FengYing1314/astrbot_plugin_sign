@@ -6,32 +6,89 @@ import json
 import os
 import datetime
 import random
+import sqlite3
 from PIL import Image, ImageDraw, ImageFont
 
 @register("astrbot_plugin_sign", "FengYing", "一个简易的签到插件(半成品)，推荐自己更改底图，分辨率为1640*856" "", "")
 class SignPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
-        self.data_file = os.path.join(os.path.dirname(__file__), "sign_data.json")
-        self.bg_image = os.path.join(os.path.dirname(__file__), "Basemap.png") # 添加底图路径
-        self.load_data()
+        # 数据库路径和名称
+        db_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "plugins_db")
+        self.db_file = os.path.join(db_dir, "astrbot_plugin_sign.db")
+        self.bg_image = os.path.join(os.path.dirname(__file__), "Basemap.png")
+        
+        # 确保数据库目录存在
+        if not os.path.exists(db_dir):
+            try:
+                os.makedirs(db_dir)
+                logger.info(f"Created database directory: {db_dir}")
+            except Exception as e:
+                logger.error(f"Failed to create database directory: {str(e)}")
+        
+        self.init_db()
 
-    def load_data(self):
-        """加载签到数据"""
-        if os.path.exists(self.data_file):
-            with open(self.data_file, 'r', encoding='utf-8') as f:
-                self.sign_data = json.load(f)
-        else:
-            self.sign_data = {}
-            self.save_data()
-        if not self.sign_data:
-            self.sign_data = {}
-            self.save_data()
+    def init_db(self):
+        """初始化数据库"""
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('''CREATE TABLE IF NOT EXISTS sign_data
+            (user_id TEXT PRIMARY KEY,
+             total_days INTEGER,
+             last_sign TEXT,
+             continuous_days INTEGER,
+             coins INTEGER)''')
+        conn.commit()
+        conn.close()
 
-    def save_data(self):
-        """保存签到数据"""
-        with open(self.data_file, 'w', encoding='utf-8') as f:
-            json.dump(self.sign_data, f, indent=4, ensure_ascii=False)
+    def get_user_data(self, user_id: str) -> dict:
+        """获取用户数据"""
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM sign_data WHERE user_id = ?', (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return {
+                "user_id": row[0],
+                "total_days": row[1],
+                "last_sign": row[2],
+                "continuous_days": row[3],
+                "coins": row[4]
+            }
+        return None
+
+    def save_user_data(self, user_data: dict):
+        """保存用户数据"""
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('''INSERT OR REPLACE INTO sign_data 
+            (user_id, total_days, last_sign, continuous_days, coins)
+            VALUES (?, ?, ?, ?, ?)''',
+            (user_data["user_id"],
+             user_data["total_days"],
+             user_data["last_sign"],
+             user_data["continuous_days"],
+             user_data["coins"]))
+        conn.commit()
+        conn.close()
+
+    def get_all_users(self) -> list:
+        """获取所有用户数据"""
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM sign_data')
+        rows = cursor.fetchall()
+        conn.close()
+        
+        return [{
+            "user_id": row[0],
+            "total_days": row[1],
+            "last_sign": row[2],
+            "continuous_days": row[3],
+            "coins": row[4]
+        } for row in rows]
 
     async def create_sign_image(self, text: str, font_size: int = 40) -> str:
         """生成签到图片,使用1640x856的底图,文字区域750x850"""
@@ -77,15 +134,15 @@ class SignPlugin(Star):
             user_id = event.get_sender_id()
             today = datetime.date.today().strftime('%Y-%m-%d')
             
-            if user_id not in self.sign_data:
-                self.sign_data[user_id] = {
+            user_data = self.get_user_data(user_id)
+            if not user_data:
+                user_data = {
+                    "user_id": user_id,
                     "total_days": 0,
                     "last_sign": "",
                     "continuous_days": 0,
                     "coins": 0
                 }
-            
-            user_data = self.sign_data[user_id]
             
             if user_data["last_sign"] == today:
                 image_path = await self.create_sign_image("今天已经签到过啦喵~", font_size=40)
@@ -107,7 +164,8 @@ class SignPlugin(Star):
             
             user_data["total_days"] += 1
             user_data["last_sign"] = today
-            self.save_data()
+            
+            self.save_user_data(user_data)
             
             result = (
                 f"签到成功喵~\n"
@@ -132,15 +190,15 @@ class SignPlugin(Star):
     async def sign_info(self, event: AstrMessageEvent):
         '''查看签到信息'''
         user_id = event.get_sender_id()
+        user_data = self.get_user_data(user_id)
         
-        if user_id not in self.sign_data:
+        if not user_data:
             image_path = await self.create_sign_image("还没有签到记录呢喵~", font_size=40)
             yield event.image_result(image_path)
             if os.path.exists(image_path):
                 os.remove(image_path)
             return
             
-        user_data = self.sign_data[user_id]
         text = (
             f"签到信息喵~\n"
             f"当前金币：{user_data.get('coins', 0)}\n"
@@ -156,15 +214,16 @@ class SignPlugin(Star):
     @filter.command("排行")
     async def sign_rank(self, event: AstrMessageEvent):
         '''查看签到排行榜'''
+        all_users = self.get_all_users()
         sorted_users = sorted(
-            self.sign_data.items(),
-            key=lambda x: (x[1]['coins'], x[1]['total_days']), 
+            all_users,
+            key=lambda x: (x['coins'], x['total_days']), 
             reverse=True
         )[:10]
         
         rank_text = "金币排行榜 TOP 10\n\n"
-        for idx, (user_id, data) in enumerate(sorted_users, 1):
-            rank_text += f"第{idx}名: {user_id}\n"
+        for idx, data in enumerate(sorted_users, 1):
+            rank_text += f"第{idx}名: {data['user_id']}\n"
             rank_text += f"金币: {data['coins']} | 累计签到: {data['total_days']}天\n\n"
         
         image_path = await self.create_sign_image(rank_text, font_size=35)  
@@ -176,15 +235,16 @@ class SignPlugin(Star):
     @filter.permission_type(filter.PermissionType.ADMIN)
     async def modify_coins(self, event: AstrMessageEvent, user_id: str, amount: int):
         '''修改用户金币数量(仅管理员)'''
-        if user_id not in self.sign_data:
+        user_data = self.get_user_data(user_id)
+        if not user_data:
             image_path = await self.create_sign_image(f"用户 {user_id} 不存在喵~", font_size=40)
             yield event.image_result(image_path)
             if os.path.exists(image_path):
                 os.remove(image_path)
             return
             
-        self.sign_data[user_id]['coins'] = amount
-        self.save_data()
+        user_data['coins'] = amount
+        self.save_user_data(user_data)
         image_path = await self.create_sign_image(f"已将用户 {user_id} 的金币修改为 {amount} 喵~", font_size=40)
         yield event.image_result(image_path)
         if os.path.exists(image_path):
