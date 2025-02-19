@@ -8,6 +8,7 @@ import datetime
 import random
 import sqlite3
 from PIL import Image, ImageDraw, ImageFont
+import requests
 
 @register("astrbot_plugin_sign", "FengYing", "一个简易的签到插件，目前正在开发新功能，和完善已实现的功能，具体使用请看README.md" "1.0.3", "https://github.com/FengYing1314/astrbot_plugin_sign")
 class SignPlugin(Star):
@@ -40,17 +41,6 @@ class SignPlugin(Star):
                 total_coins_gift INTEGER DEFAULT 0,
                 last_fortune_result TEXT DEFAULT '',
                 last_fortune_value INTEGER DEFAULT 0
-            )
-        ''')
-        
-        # 创建占卜历史表
-        self.cursor.execute('''
-            CREATE TABLE IF NOT EXISTS fortune_history (
-                user_id TEXT,
-                date TEXT,
-                result TEXT,
-                value INTEGER,
-                PRIMARY KEY (user_id, date)
             )
         ''')
         
@@ -88,22 +78,27 @@ class SignPlugin(Star):
         self.cursor.execute(sql, values)
         self.conn.commit()
 
-    def add_fortune_history(self, user_id, date, result, value):
-        """添加占卜历史记录"""
-        self.cursor.execute('''
-            INSERT OR REPLACE INTO fortune_history (user_id, date, result, value)
-            VALUES (?, ?, ?, ?)
-        ''', (user_id, date, result, value))
-        self.conn.commit()
-
-    def get_fortune_history(self, user_id, limit=7):
-        """获取用户占卜历史"""
-        self.cursor.execute('''
-            SELECT date, result, value FROM fortune_history 
-            WHERE user_id = ? 
-            ORDER BY date DESC LIMIT ?
-        ''', (user_id, limit))
-        return self.cursor.fetchall()
+    async def download_font(self, font_path: str) -> bool:
+        """下载字体文件"""
+        try:
+            font_url = "https://github.com/lxgw/LxgwWenKai/releases/download/v1.510/LXGWWenKai-Medium.ttf"
+            logger.info(f"正在下载字体文件: {font_url}")
+            
+            response = requests.get(font_url)
+            if response.status_code == 200:
+                # 确保目录存在
+                os.makedirs(os.path.dirname(font_path), exist_ok=True)
+                
+                with open(font_path, 'wb') as f:
+                    f.write(response.content)
+                logger.info(f"字体文件下载成功: {font_path}")
+                return True
+            else:
+                logger.error(f"字体文件下载失败,状态码: {response.status_code}")
+                return False
+        except Exception as e:
+            logger.error(f"字体文件下载失败: {str(e)}")
+            return False
 
     async def create_sign_image(self, text: str, font_size: int = 40) -> str:
         """生成签到图片,使用1640x856的底图,文字区域750x850"""
@@ -120,8 +115,10 @@ class SignPlugin(Star):
 
             font_path = os.path.join(os.path.dirname(__file__), "LXGWWenKai-Medium.ttf")
             if not os.path.exists(font_path):
-                logger.error(f"字体文件不存在: {font_path}")
-                return None
+                logger.info("字体文件不存在,尝试下载...")
+                if not await self.download_font(font_path):
+                    logger.error("字体文件下载失败")
+                    return None
 
             font = ImageFont.truetype(font_path, font_size)
 
@@ -184,9 +181,6 @@ class SignPlugin(Star):
                 last_fortune_result=fortune_result,
                 last_fortune_value=fortune_value
             )
-            
-            # 添加占卜历史
-            self.add_fortune_history(user_id, today, fortune_result, fortune_value)
 
             # 生成结果消息
             result = (
@@ -236,28 +230,6 @@ class SignPlugin(Star):
         if os.path.exists(image_path):
             os.remove(image_path)
 
-    @filter.command("占卜历史")
-    async def fortune_history(self, event: AstrMessageEvent):
-        '''查看最近7天占卜记录'''
-        user_id = event.get_sender_id()
-
-        if not self.get_user_data(user_id):
-            image_path = await self.create_sign_image("还没有签到记录呢喵~", font_size=40)
-            yield event.image_result(image_path)
-            return
-
-        history = self.get_fortune_history(user_id)
-
-        # 获取最近7条记录
-        history_text = "最近占卜记录\n\n"
-        for date, result, value in history:
-            history_text += f"{date}: {result} ({value}/100)\n"
-
-        image_path = await self.create_sign_image(history_text, font_size=35)
-        yield event.image_result(image_path)
-        if os.path.exists(image_path):
-            os.remove(image_path)
-
     @filter.command("排行")
     async def sign_rank(self, event: AstrMessageEvent):
         '''查看签到排行榜'''
@@ -301,7 +273,6 @@ class SignPlugin(Star):
         try:
             # 清空签到数据
             self.cursor.execute('DELETE FROM sign_data')
-            self.cursor.execute('DELETE FROM fortune_history')
             self.conn.commit()
 
             # 返回成功消息
@@ -319,7 +290,6 @@ class SignPlugin(Star):
         '''删除指定用户的签到记录（仅管理员）'''
         if self.get_user_data(user_id):
             self.cursor.execute('DELETE FROM sign_data WHERE user_id = ?', (user_id,))
-            self.cursor.execute('DELETE FROM fortune_history WHERE user_id = ?', (user_id,))
             self.conn.commit()
             yield event.plain_result(f"用户 {user_id} 的签到记录已删除喵~")
         else:
@@ -332,7 +302,6 @@ class SignPlugin(Star):
 
 发送 签到 - 每日签到
 发送 查询 - 查看个人签到信息
-发送 占卜历史 - 查看最近7天占卜记录
 发送 排行 - 查看签到排行榜
 发送 签到帮助 - 显示本帮助
 
