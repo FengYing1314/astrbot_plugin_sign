@@ -8,7 +8,6 @@ import datetime
 import random
 import sqlite3
 from PIL import Image, ImageDraw, ImageFont
-import requests
 
 @register("astrbot_plugin_sign", "FengYing", "一个简易的签到插件，目前正在开发新功能，和完善已实现的功能，具体使用请看README.md" "1.0.3", "https://github.com/FengYing1314/astrbot_plugin_sign")
 class SignPlugin(Star):
@@ -41,6 +40,28 @@ class SignPlugin(Star):
                 total_coins_gift INTEGER DEFAULT 0,
                 last_fortune_result TEXT DEFAULT '',
                 last_fortune_value INTEGER DEFAULT 0
+            )
+        ''')
+        
+        # 创建金币历史表
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS coins_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT,
+                amount INTEGER,
+                reason TEXT,
+                timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # 创建占卜历史表 
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS fortune_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT,
+                result TEXT,
+                value INTEGER,
+                timestamp TEXT DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
@@ -78,28 +99,6 @@ class SignPlugin(Star):
         self.cursor.execute(sql, values)
         self.conn.commit()
 
-    async def download_font(self, font_path: str) -> bool:
-        """下载字体文件"""
-        try:
-            font_url = "https://github.com/lxgw/LxgwWenKai/releases/download/v1.510/LXGWWenKai-Medium.ttf"
-            logger.info(f"正在下载字体文件: {font_url}")
-            
-            response = requests.get(font_url)
-            if response.status_code == 200:
-                # 确保目录存在
-                os.makedirs(os.path.dirname(font_path), exist_ok=True)
-                
-                with open(font_path, 'wb') as f:
-                    f.write(response.content)
-                logger.info(f"字体文件下载成功: {font_path}")
-                return True
-            else:
-                logger.error(f"字体文件下载失败,状态码: {response.status_code}")
-                return False
-        except Exception as e:
-            logger.error(f"字体文件下载失败: {str(e)}")
-            return False
-
     async def create_sign_image(self, text: str, font_size: int = 40) -> str:
         """生成签到图片,使用1640x856的底图,文字区域750x850"""
         try:
@@ -113,14 +112,22 @@ class SignPlugin(Star):
 
             draw = ImageDraw.Draw(bg)
 
+            # 尝试加载自定义字体，如果失败则使用系统默认字体
             font_path = os.path.join(os.path.dirname(__file__), "LXGWWenKai-Medium.ttf")
-            if not os.path.exists(font_path):
-                logger.info("字体文件不存在,尝试下载...")
-                if not await self.download_font(font_path):
-                    logger.error("字体文件下载失败")
-                    return None
-
-            font = ImageFont.truetype(font_path, font_size)
+            try:
+                if os.path.exists(font_path):
+                    font = ImageFont.truetype(font_path, font_size)
+                else:
+                    # 在 Windows 上使用微软雅黑，在其他系统上使用默认无衬线字体
+                    if os.name == 'nt':
+                        font = ImageFont.truetype("msyh.ttc", font_size)
+                    else:
+                        font = ImageFont.load_default()
+                        font_size = 16  # 默认字体可能需要调整字体大小
+            except Exception as e:
+                logger.warning(f"加载字体失败: {str(e)}，使用系统默认字体")
+                font = ImageFont.load_default()
+                font_size = 16
 
             text_bbox = draw.textbbox((0, 0), text, font=font)
             text_width = text_bbox[2] - text_bbox[0]
@@ -182,6 +189,26 @@ class SignPlugin(Star):
                 last_fortune_value=fortune_value
             )
 
+            # 记录金币历史
+            self.cursor.execute('''
+                INSERT INTO coins_history (user_id, amount, reason)
+                VALUES (?, ?, ?)
+            ''', (user_id, coins_got, "基础签到"))
+            
+            if coins_gift > 0:
+                self.cursor.execute('''
+                    INSERT INTO coins_history (user_id, amount, reason)
+                    VALUES (?, ?, ?)
+                ''', (user_id, coins_gift, "连续签到奖励"))
+
+            # 记录占卜历史
+            self.cursor.execute('''
+                INSERT INTO fortune_history (user_id, result, value)
+                VALUES (?, ?, ?)
+            ''', (user_id, fortune_result, fortune_value))
+            
+            self.conn.commit()
+
             # 生成结果消息
             result = (
                 f"签到成功喵~\n"
@@ -203,7 +230,7 @@ class SignPlugin(Star):
             logger.error(f"签到失败: {str(e)}")
             yield event.plain_result("签到失败了喵~请联系管理员检查日志")
 
-    @filter.command("查询")
+    @filter.command("签到查询")
     async def sign_info(self, event: AstrMessageEvent):
         '''查看签到信息'''
         user_id = event.get_sender_id()
@@ -230,9 +257,9 @@ class SignPlugin(Star):
         if os.path.exists(image_path):
             os.remove(image_path)
 
-    @filter.command("排行")
+    @filter.command("金币排行")
     async def sign_rank(self, event: AstrMessageEvent):
-        '''查看签到排行榜'''
+        '''查看金币排行榜'''
         self.cursor.execute('''
             SELECT user_id, coins, total_days FROM sign_data
             ORDER BY coins DESC, total_days DESC LIMIT 10
@@ -245,6 +272,78 @@ class SignPlugin(Star):
             rank_text += f"金币: {coins} | 累计签到: {total_days}天\n\n"
 
         image_path = await self.create_sign_image(rank_text, font_size=35)
+        yield event.image_result(image_path)
+        if os.path.exists(image_path):
+            os.remove(image_path)
+
+    @filter.command("金币历史")
+    async def coins_history(self, event: AstrMessageEvent, days: int = 7):
+        '''查看金币历史记录
+        参数:
+            days: 查看最近几天的记录,默认7天
+        '''
+        user_id = event.get_sender_id()
+        
+        # 查询最近days天的金币记录
+        self.cursor.execute('''
+            SELECT amount, reason, timestamp 
+            FROM coins_history 
+            WHERE user_id = ? AND timestamp >= date('now', ?) 
+            ORDER BY timestamp DESC
+        ''', (user_id, f'-{days} days'))
+        
+        records = self.cursor.fetchall()
+        
+        if not records:
+            image_path = await self.create_sign_image(f"最近{days}天没有金币记录喵~")
+            yield event.image_result(image_path)
+            if os.path.exists(image_path):
+                os.remove(image_path)
+            return
+            
+        text = f"最近{days}天的金币记录喵~\n\n"
+        total = 0
+        for amount, reason, timestamp in records:
+            text += f"{timestamp}: {reason} {'+' if amount >= 0 else ''}{amount}金币\n"
+            total += amount
+            
+        text += f"\n总计: {'+' if total >= 0 else ''}{total}金币"
+        
+        image_path = await self.create_sign_image(text, font_size=35)
+        yield event.image_result(image_path)
+        if os.path.exists(image_path):
+            os.remove(image_path)
+
+    @filter.command("占卜历史")  
+    async def fortune_history(self, event: AstrMessageEvent, days: int = 7):
+        '''查看占卜历史记录
+        参数:
+            days: 查看最近几天的记录,默认7天
+        '''
+        user_id = event.get_sender_id()
+        
+        # 查询最近days天的占卜记录
+        self.cursor.execute('''
+            SELECT result, value, timestamp 
+            FROM fortune_history 
+            WHERE user_id = ? AND timestamp >= date('now', ?) 
+            ORDER BY timestamp DESC
+        ''', (user_id, f'-{days} days'))
+        
+        records = self.cursor.fetchall()
+        
+        if not records:
+            image_path = await self.create_sign_image(f"最近{days}天没有占卜记录喵~")
+            yield event.image_result(image_path)
+            if os.path.exists(image_path):
+                os.remove(image_path)
+            return
+            
+        text = f"最近{days}天的占卜记录喵~\n\n"
+        for result, value, timestamp in records:
+            text += f"{timestamp}: {result} ({value}/100)\n"
+        
+        image_path = await self.create_sign_image(text, font_size=35)
         yield event.image_result(image_path)
         if os.path.exists(image_path):
             os.remove(image_path)
@@ -266,25 +365,7 @@ class SignPlugin(Star):
         if os.path.exists(image_path):
             os.remove(image_path)
 
-    @filter.command("删除所有记录")
-    @filter.permission_type(filter.PermissionType.ADMIN)
-    async def delete_all_records(self, event: AstrMessageEvent):
-        '''删除所有签到记录（仅管理员）'''
-        try:
-            # 清空签到数据
-            self.cursor.execute('DELETE FROM sign_data')
-            self.conn.commit()
-
-            # 返回成功消息
-            image_path = await self.create_sign_image("所有签到记录已删除喵~", font_size=40)
-            yield event.image_result(image_path)
-            if os.path.exists(image_path):
-                os.remove(image_path)
-        except Exception as e:
-            logger.error(f"删除记录失败: {str(e)}")
-            yield event.plain_result("删除记录失败喵~请联系开发者检查日志")
-
-    @filter.command("删除用户记录")
+    @filter.command("删除用户签到和占卜记录")
     @filter.permission_type(filter.PermissionType.ADMIN)
     async def delete_user_records(self, event: AstrMessageEvent, user_id: str):
         '''删除指定用户的签到记录（仅管理员）'''
@@ -295,22 +376,41 @@ class SignPlugin(Star):
         else:
             yield event.plain_result(f"用户 {user_id} 不存在喵~")
 
+    @filter.command("删除历史记录")
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    async def delete_history(self, event: AstrMessageEvent, user_id: str):
+        '''删除用户的所有历史记录（仅管理员）'''
+        self.cursor.execute('DELETE FROM coins_history WHERE user_id = ?', (user_id,))
+        self.cursor.execute('DELETE FROM fortune_history WHERE user_id = ?', (user_id,))
+        self.conn.commit()
+        yield event.plain_result(f"已删除用户 {user_id} 的所有历史记录喵~")
+
     @filter.command("签到帮助")
     async def sign_help(self, event: AstrMessageEvent):
         '''查看签到帮助'''
         help_text = """签到系统帮助喵~
 
-发送 签到 - 每日签到
-发送 查询 - 查看个人签到信息
-发送 排行 - 查看签到排行榜
-发送 签到帮助 - 显示本帮助
+基础指令：
+发送 签到 - 每日签到获取金币和运势
+         - 金币：0-100随机+连续签到
+         - 附赠每日运势占卜
 
-管理员指令:
-发送 修改金币 <用户id> <金币数> - 修改用户金币数量
-发送 删除所有记录 - 删除所有签到记录
-发送 删除用户记录 <用户id> - 删除指定用户的签到记录"""
+发送 签到查询 - 查看个人签到信息
 
-        image_path = await self.create_sign_image(help_text, font_size=38)
+发送 金币排行 - 查看签到金币排行榜TOP10
+              - 显示玩家ID、金币数和累计签到天数
+
+发送 签到帮助 - 显示本帮助信息
+
+发送 金币历史 [天数] - 查看最近几天的金币记录(默认7天)
+发送 占卜历史 [天数] - 查看最近几天的占卜记录(默认7天)
+
+管理员指令：
+发送 修改金币 <用户id> <金币数> - 修改指定用户的金币数量
+发送 删除用户记录 <用户id> - 删除指定用户的所有签到记录和占卜记录
+发送 删除历史记录 <用户id> - 删除指定用户的所有历史记录"""
+
+        image_path = await self.create_sign_image(help_text, font_size=36) 
         yield event.image_result(image_path)
         if os.path.exists(image_path):
             os.remove(image_path)
